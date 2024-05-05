@@ -1,0 +1,21 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Timer {
+  internalId  Int      @id @default(autoincrement())
+  id          String   @unique
+  message     String
+  user        String
+  channel     String
+  creation    DateTime
+  due         DateTime
+  snoozedDue  DateTime
+  snoozeCount Int      @default(0)
+  shown       Boolean  @default(false)
+}

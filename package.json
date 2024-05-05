@@ -1,0 +1,22 @@
+{
+  "name": "timer-bot",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "ts-node-esm src/index.ts",
+    "update-db": "prisma migrate dev"
+  },
+  "devDependencies": {
+    "prisma": "^5.13.0",
+    "ts-node": "^10.9.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.13.0",
+    "chrono-node": "^2.7.5",
+    "date-fns": "^3.6.0",
+    "discord.js": "^14.14.1"
+  }
+}
