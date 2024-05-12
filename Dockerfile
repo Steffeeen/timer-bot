@@ -11,6 +11,7 @@ COPY tsconfig.json /app
 RUN npm install
 
 ENV DATABASE_URL="file:../data/timerbot.db"
+ENV TZ="Europe/Berlin"
 
 RUN npx prisma migrate dev --name init
 
