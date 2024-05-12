@@ -10,9 +10,20 @@ COPY tsconfig.json /app
 
 RUN npm install
 
-ENV DATABASE_URL="file:../data/timerbot.db"
+
+ENV DB_FILE="/app/data/timerbot.db"
+ENV DATABASE_URL="file:${DB_FILE}"
 ENV TZ="Europe/Berlin"
 
 RUN npx prisma migrate dev --name init
 
-CMD npx prisma migrate dev --name init && npm run start
+RUN echo "if [ ! -f "$DB_FILE" ]; then" > setup-db.sh
+RUN echo "  echo "SQLite database not found. Running prisma migrate deploy..."" >> setup-db.sh
+RUN echo "  npx prisma migrate deploy" >> setup-db.sh
+RUN echo "else" >> setup-db.sh
+RUN echo "  echo "SQLite database already exists."" >> setup-db.sh
+RUN echo "fi" >> setup-db.sh
+
+RUN chmod +x setup-db.sh
+
+CMD bash setup-db.sh && npm run start
