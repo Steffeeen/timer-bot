@@ -157,8 +157,8 @@ export function createTimerEmbed(timer: Timer, {title, color}: TimerEmbedInfo, o
         .addFields(
             {name: "Id", value: timer.id, inline: true},
             {name: "Owner", value: `<@${owner.id}>`, inline: true},
-            {name: "Due", value: timer.snoozedDue.toLocaleString("en"), inline: true},
-            {name: "Created", value: timer.creation.toLocaleString("en"), inline: true},
+            {name: "Due", value: timer.snoozedDue.toLocaleString("en-GB"), inline: true},
+            {name: "Created", value: timer.creation.toLocaleString("en-GB"), inline: true},
             {name: "Duration", value: formatDistance(timer.snoozedDue, timer.creation, {addSuffix: true}), inline: true},
         );
 
