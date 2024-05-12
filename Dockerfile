@@ -14,4 +14,4 @@ ENV DATABASE_URL="file:../data/timerbot.db"
 
 RUN npx prisma migrate dev --name init
 
-CMD ["npm", "run", "start"]
+CMD npx prisma migrate dev --name init && npm run start
