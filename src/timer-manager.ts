@@ -5,8 +5,6 @@ import * as crypto from "node:crypto";
 import {client} from "./client.ts";
 import {formatDistance} from "date-fns";
 
-const TIMER_ID_LENGTH = 3;
-
 setInterval(checkTimersDue, 60 * 1000);
 checkTimersDue();
 
