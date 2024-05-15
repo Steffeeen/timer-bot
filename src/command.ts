@@ -145,6 +145,14 @@ async function handleCreateTimer(interaction: ChatInputCommandInteraction) {
         return;
     }
 
+    if ((date.getHours() == 0 || date.getHours() == 12) && date.getMinutes() == 0 && date.getSeconds() == 0) {
+        // special case: user entered a date without a time, chrono automatically assumes midnight, change to current time
+        const now = new Date();
+        date.setHours(now.getHours());
+        date.setMinutes(now.getMinutes());
+        date.setSeconds(now.getSeconds());
+    }
+
     const timer = await createTimer(message, interaction.user, interaction.channel, date);
     await showTimer(interaction, timer, TimerEmbedInfo.TIMER_CREATED);
 }
