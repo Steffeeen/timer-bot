@@ -102,7 +102,8 @@ export class TimerCommand extends Command {
         if ((subcommand === "delete" || subcommand === "snooze")) {
             const focusedOption = interaction.options.getFocused(true);
             if (focusedOption.name === "id") {
-                const timers = await getAllTimersForUser(interaction.user, true);
+                const isSnooze = subcommand === "snooze";
+                const timers = await getAllTimersForUser(interaction.user, !isSnooze);
                 const options = timers.map(timer => ({
                     name: `${timer.id} - ${timer.message}`,
                     value: timer.id
