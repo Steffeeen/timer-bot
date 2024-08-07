@@ -94,6 +94,27 @@ export async function snoozeTimer(timer: Timer, due: Date): Promise<Timer> {
     });
 }
 
+export async function editTimer(timer: Timer, newMessage: string | null, newDue: Date | null): Promise<Timer> {
+    if (!newMessage && !newDue) {
+        return timer;
+    }
+
+    const updatedMessage = newMessage ?? timer.message;
+    const updatedDue = newDue ?? timer.due;
+    const updatedSnoozedDue = newDue ?? timer.snoozedDue;
+
+    return DB.timer.update({
+        where: {
+            id: timer.id,
+        },
+        data: {
+            message: updatedMessage,
+            due: updatedDue,
+            snoozedDue: updatedSnoozedDue,
+        },
+    });
+}
+
 async function createTimerId(): Promise<string> {
     const internalCreateTimerId = () =>
         crypto.randomBytes(3).toString("hex");
@@ -145,6 +166,7 @@ export const TimerEmbedInfo: Record<string, TimerEmbedInfo> = {
     TIMER_CREATED: {title: "Timer created", color: 0x00ff00},
     TIMER_DELETED: {title: "Timer deleted", color: 0xff0000},
     TIMER_SNOOZED: {title: "Timer snoozed", color: 0x00ffff},
+    TIMER_EDITED: {title: "Timer edited", color: 0xffff00},
 };
 
 export function createTimerEmbed(timer: Timer, {title, color}: TimerEmbedInfo, owner: User): EmbedBuilder {

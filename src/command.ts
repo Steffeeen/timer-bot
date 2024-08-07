@@ -4,7 +4,7 @@ import {formatDistance} from "date-fns";
 import {
     createTimer,
     createTimerEmbed,
-    deleteTimer,
+    deleteTimer, editTimer,
     getAllTimersForUser,
     getTimerById,
     snoozeTimer, TimerEmbedInfo,
@@ -80,6 +80,13 @@ export class TimerCommand extends Command {
         .addSubcommand(listCommand =>
             listCommand.setName("list")
                 .setDescription("List all timers")
+        )
+        .addSubcommand(editCommand =>
+            editCommand.setName("edit")
+                .setDescription("Edit a timer")
+                .addStringOption(option => option.setName("id").setDescription("The ID of the timer to edit").setRequired(true).setAutocomplete(true))
+                .addStringOption(option => option.setName("message").setDescription("The new message for the timer").setRequired(false))
+                .addStringOption(option => option.setName("time").setDescription("The new time for the timer").setRequired(false))
         ) as SlashCommandBuilder;
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -92,6 +99,8 @@ export class TimerCommand extends Command {
                 return handleSnoozeTimer(interaction);
             case "list":
                 return handleListTimers(interaction);
+            case "edit":
+                return handleEditTimer(interaction);
         }
 
         await interaction.reply({content: "Invalid subcommand", ephemeral: true});
@@ -99,7 +108,7 @@ export class TimerCommand extends Command {
 
     async autocomplete(interaction: AutocompleteInteraction): Promise<void> {
         const subcommand = interaction.options.getSubcommand();
-        if ((subcommand === "delete" || subcommand === "snooze")) {
+        if (subcommand === "delete" || subcommand === "snooze" || subcommand === "edit") {
             const focusedOption = interaction.options.getFocused(true);
             if (focusedOption.name === "id") {
                 const isSnooze = subcommand === "snooze";
@@ -112,7 +121,6 @@ export class TimerCommand extends Command {
                 await interaction.respond(options);
             }
         }
-
     }
 }
 
@@ -199,6 +207,39 @@ async function handleSnoozeTimer(interaction: ChatInputCommandInteraction) {
 async function handleListTimers(interaction: ChatInputCommandInteraction) {
     const timers = await getAllTimersForUser(interaction.user, true);
     await showTimerList(timers, interaction);
+}
+
+async function handleEditTimer(interaction: ChatInputCommandInteraction) {
+    const timer = await getTimerFromInteraction(interaction);
+    if (!timer) {
+        return;
+    }
+
+    const message = interaction.options.getString("message");
+    const timeString = interaction.options.getString("time");
+
+    if (!message && !timeString) {
+        await interaction.reply({
+            content: "No message or time provided",
+            ephemeral: true
+        });
+        return;
+    }
+
+    let date: Date | null = null;
+    if (timeString) {
+        date = parseTimeString(timeString);
+        if (!date) {
+            await interaction.reply({
+                content: "Invalid time",
+                ephemeral: true
+            });
+            return;
+        }
+    }
+
+    const updatedTimer = await editTimer(timer, message, date);
+    await showTimer(interaction, updatedTimer, TimerEmbedInfo.TIMER_EDITED);
 }
 
 async function getTimerFromInteraction(interaction: ChatInputCommandInteraction): Promise<Timer | null> {
