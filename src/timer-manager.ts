@@ -179,7 +179,7 @@ export function createTimerEmbed(timer: Timer, {title, color}: TimerEmbedInfo, o
             {name: "Owner", value: `<@${owner.id}>`, inline: true},
             {name: "Due", value: timer.snoozedDue.toLocaleString("en-GB"), inline: true},
             {name: "Created", value: timer.creation.toLocaleString("en-GB"), inline: true},
-            {name: "Duration", value: formatDistance(timer.snoozedDue, timer.creation, {addSuffix: true}), inline: true},
+            {name: "Duration", value: formatDistance(timer.snoozedDue, new Date(), {addSuffix: true}), inline: true},
         );
 
     if (timer.snoozeCount > 0) {
