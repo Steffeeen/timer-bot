@@ -169,17 +169,55 @@ export const TimerEmbedInfo: Record<string, TimerEmbedInfo> = {
     TIMER_EDITED: {title: "Timer edited", color: 0xffff00},
 };
 
-export function createTimerEmbed(timer: Timer, {title, color}: TimerEmbedInfo, owner: User): EmbedBuilder {
+function formatDate(date: Date, includeDuration: boolean): string {
+    let base = date.toLocaleString("en-GB");
+
+    if (includeDuration) {
+        base += "\n";
+        base += `(${formatDistance(date, new Date())})`
+    }
+
+    return base;
+}
+
+export function createTimerEmbed(timer: Timer, embedInfo: TimerEmbedInfo, owner: User): EmbedBuilder {
+    let due: string;
+    let created: string;
+    switch (embedInfo) {
+        case TimerEmbedInfo.TIMER_CREATED:
+            due = formatDate(timer.snoozedDue, true)
+            created = formatDate(timer.creation, false)
+            break;
+
+        case TimerEmbedInfo.TIMER_DELETED:
+            due = formatDate(timer.snoozedDue, true)
+            created = formatDate(timer.creation, true)
+            break;
+
+        case TimerEmbedInfo.TIMER_SNOOZED:
+            due = formatDate(timer.snoozedDue, true)
+            created = formatDate(timer.creation, true)
+            break;
+
+        case TimerEmbedInfo.TIMER_EDITED:
+            due = formatDate(timer.snoozedDue, true)
+            created = formatDate(timer.creation, true)
+            break;
+        default:
+            due = formatDate(timer.snoozedDue, false)
+            created = formatDate(timer.creation, false)
+    }
+
     const embed = new EmbedBuilder()
-        .setColor(color)
-        .setTitle(title)
+        .setColor(embedInfo.color)
+        .setTitle(embedInfo.title)
         .setDescription(timer.message)
         .addFields(
             {name: "Id", value: timer.id, inline: true},
             {name: "Owner", value: `<@${owner.id}>`, inline: true},
-            {name: "Due", value: timer.snoozedDue.toLocaleString("en-GB"), inline: true},
-            {name: "Created", value: timer.creation.toLocaleString("en-GB"), inline: true},
-            {name: "Duration", value: formatDistance(timer.snoozedDue, new Date(), {addSuffix: true}), inline: true},
+            {name: "\u200b", value: "\u200b", inline: true},
+            {name: "Due", value: due, inline: true},
+            {name: "Created", value: created, inline: true}
         );
 
     if (timer.snoozeCount > 0) {
