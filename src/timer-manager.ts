@@ -174,7 +174,7 @@ function formatDate(date: Date, includeDuration: boolean): string {
 
     if (includeDuration) {
         base += "\n";
-        base += `(${formatDistance(date, new Date())})`
+        base += `(${formatDistance(date, new Date(), { addSuffix: true })})`
     }
 
     return base;
