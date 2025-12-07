@@ -152,7 +152,7 @@ async function showDueTimer(timer: Timer) {
         channel = owner.dmChannel ? owner.dmChannel : await owner.createDM();
     }
 
-    const embed = createTimerEmbed(timer, {title: "Timer due", color: 0x0000ff}, owner);
+    const embed = createTimerEmbed(timer, TimerEmbedInfo.TIMER_DUE, owner);
 
     channel.send({embeds: [embed], content: `<@${owner.id}>`});
 }
@@ -167,6 +167,7 @@ export const TimerEmbedInfo: Record<string, TimerEmbedInfo> = {
     TIMER_DELETED: {title: "Timer deleted", color: 0xff0000},
     TIMER_SNOOZED: {title: "Timer snoozed", color: 0x00ffff},
     TIMER_EDITED: {title: "Timer edited", color: 0xffff00},
+    TIMER_DUE: {title: "Timer due", color: 0x0000ff}
 };
 
 function formatDate(date: Date, includeDuration: boolean): string {
@@ -203,6 +204,12 @@ export function createTimerEmbed(timer: Timer, embedInfo: TimerEmbedInfo, owner:
             due = formatDate(timer.snoozedDue, true)
             created = formatDate(timer.creation, true)
             break;
+
+        case TimerEmbedInfo.TIMER_DUE:
+            due = formatDate(timer.snoozedDue, false)
+            created = formatDate(timer.creation, true)
+            break;
+
         default:
             due = formatDate(timer.snoozedDue, false)
             created = formatDate(timer.creation, false)
