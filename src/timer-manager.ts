@@ -116,8 +116,15 @@ export async function editTimer(timer: Timer, newMessage: string | null, newDue:
 }
 
 async function createTimerId(): Promise<string> {
-    const internalCreateTimerId = () =>
-        crypto.randomBytes(3).toString("hex");
+    const internalCreateTimerId = () => {
+        const bytes = crypto.randomBytes(4);
+        const letters = "abcdefghijklmnopqrstuvwxyz";
+        let id = "";
+        for (let i = 0; i < 4; i++) {
+            id += letters[bytes[i] % letters.length];
+        }
+        return id;
+    };
 
     let id: string;
     let timerForId: Timer | null;
