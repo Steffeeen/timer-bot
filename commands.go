@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/markusmobius/go-dateparser"
+	"github.com/dustin/go-humanize"
 )
 
 var commands = []*discordgo.ApplicationCommand{
@@ -110,40 +109,49 @@ var commands = []*discordgo.ApplicationCommand{
 	},
 }
 
-func interactionCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if i.Type == discordgo.InteractionApplicationCommand {
-		switch i.ApplicationCommandData().Name {
+func interactionCreate(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	if interaction.Type == discordgo.InteractionApplicationCommand {
+		switch interaction.ApplicationCommandData().Name {
 		case "until":
-			handleUntil(s, i)
+			handleUntil(session, interaction)
 		case "timer":
-			handleTimer(s, i)
+			handleTimer(session, interaction)
 		}
 	}
 }
 
-func handleUntil(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	dateStr := i.ApplicationCommandData().Options[0].StringValue()
-	date, err := parseDate(dateStr)
+func handleUntil(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	dateStr := interaction.ApplicationCommandData().Options[0].StringValue()
+	date, err := parseTime(dateStr)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Invalid date format",
 			},
 		})
+
+		if err != nil {
+			fmt.Println("Error sending message in date parsing failed in handleUntil():", err)
+		}
+
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
 				{
 					Title:       "Time until",
-					Description: fmt.Sprintf("Time until <t:%d:F> is <t:%d:R>", date.Unix(), date.Unix()),
+					Description: fmt.Sprintf("Time until <t:%d:F>: %s", date.Unix(), humanize.Time(date)),
 					Color:       0x00ff00,
 				},
 			},
 		},
 	})
+
+	if err != nil {
+		fmt.Println("Error sending message in handleUntil():", err)
+	}
 }

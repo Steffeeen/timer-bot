@@ -46,7 +46,10 @@ func showDueTimer(session *discordgo.Session, timer *Timer) {
 
 	embed := createTimerEmbed(timer, user, TimerEmbedTypeDue)
 
-	_, err = session.ChannelMessageSendEmbed(timer.Channel, embed)
+	_, err = session.ChannelMessageSendComplex(timer.Channel, &discordgo.MessageSend{
+		Embeds:  []*discordgo.MessageEmbed{embed},
+		Content: user.Mention(),
+	})
 	if err != nil {
 		fmt.Println("Error sending message:", err)
 	}
@@ -68,31 +71,38 @@ var (
 )
 
 func createTimerEmbed(timer *Timer, owner *discordgo.User, embedType TimerEmbedType) *discordgo.MessageEmbed {
-	due :=
+	due := formatTime(timer.SnoozedDue, embedType.includeDurationForDue)
+	created := formatTime(timer.Created, embedType.includeDurationForCreated)
 
 	return &discordgo.MessageEmbed{
-		Title:       "Timer Due",
+		Title:       embedType.Title,
 		Description: timer.Message,
-		Color:       0x0000ff,
+		Color:       embedType.color,
 		Fields: []*discordgo.MessageEmbedField{
 			{
-				Name: "Id",
-				Value: timer.ID,
+				Name:   "Id",
+				Value:  timer.ID,
 				Inline: true,
 			},
 			{
-				Name: "Owner",
-				Value: owner.Mention(),
+				Name:   "Owner",
+				Value:  owner.Mention(),
 				Inline: true,
 			},
 			{
-				Name: "\u200b",
-				Value: "\u200b",
+				Name:   "\u200b",
+				Value:  "\u200b",
 				Inline: true,
 			},
 			{
-				Name: "Due",
-
+				Name:   "Due",
+				Value:  due,
+				Inline: true,
+			},
+			{
+				Name:   "Created",
+				Value:  created,
+				Inline: true,
 			},
 		},
 	}
@@ -102,4 +112,10 @@ func formatTime(timeToFormat time.Time, includeDuration bool) string {
 	base := timeToFormat.In(time.Local).
 		Format("02/01/2006, 15:04:05")
 
+	if includeDuration {
+		// fmt.Sprintf("<t:%d:R>", timer.Due.Unix())
+		base += fmt.Sprintf("\n(%s)", humanize.Time(timeToFormat))
+	}
+
+	return base
 }

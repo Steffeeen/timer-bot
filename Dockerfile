@@ -17,6 +17,12 @@ FROM alpine:latest
 
 WORKDIR /app
 
+# Create data directory for database
+RUN mkdir -p /app/data
+
 COPY --from=builder /app/timer-bot .
+
+# Set default database location (can be overridden)
+ENV DATABASE_URL=/app/data/timerbot.db
 
 CMD ["/app/timer-bot"]

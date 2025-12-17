@@ -85,6 +85,8 @@ func registerCommands(session *discordgo.Session) ([]*discordgo.ApplicationComma
 		registeredCommands[i] = registered
 	}
 
+	fmt.Printf("Registered %d commands\n", len(registeredCommands))
+
 	return registeredCommands, nil
 }
 

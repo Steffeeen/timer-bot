@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/bwmarrin/discordgo"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -17,7 +16,7 @@ func initDB() error {
 	var err error
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		return errors.New("missing DATABASE_URL")
+		dbURL = "/app/data/timerbot.db"
 	}
 	db, err = sql.Open("sqlite3", dbURL)
 	if err != nil {
@@ -42,9 +41,9 @@ func initDB() error {
 	return err
 }
 
-func createTimer(id string, message string, user *discordgo.User, channel *discordgo.Channel, due time.Time) (*Timer, error) {
+func createTimer(id string, message string, userId string, channelId string, due time.Time) (*Timer, error) {
 	created := time.Now()
-	_, err := db.Exec("INSERT INTO timers (id, message, user, channel, creation, due, snoozedDue) VALUES (?, ?, ?, ?, ?, ?, ?)", id, message, user.ID, channel.ID, created.UTC(), due.UTC(), due.UTC())
+	_, err := db.Exec("INSERT INTO timers (id, message, user, channel, creation, due, snoozedDue) VALUES (?, ?, ?, ?, ?, ?, ?)", id, message, userId, channelId, created, due, due)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +51,8 @@ func createTimer(id string, message string, user *discordgo.User, channel *disco
 	return &Timer{
 		ID:          id,
 		Message:     message,
-		User:        user.ID,
-		Channel:     channel.ID,
+		User:        userId,
+		Channel:     channelId,
 		Created:     created,
 		Due:         due,
 		SnoozedDue:  due,

@@ -5,100 +5,90 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/markusmobius/go-dateparser"
 )
 
-func handleTimer(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	switch i.ApplicationCommandData().Options[0].Name {
-	case "create":
-		handleTimerCreate(s, i)
-	case "list":
-		handleTimerList(s, i)
-	case "delete":
-		handleTimerDelete(s, i)
-	case "edit":
-		handleTimerEdit(s, i)
-	case "snooze":
-		handleTimerSnooze(s, i)
+func respondWithLog(session *discordgo.Session, interaction *discordgo.Interaction, response *discordgo.InteractionResponse, context string) {
+	err := session.InteractionRespond(interaction, response)
+	if err != nil {
+		fmt.Println("Error responding to interaction in", context+":", err)
 	}
 }
 
-func handleTimerCreate(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	options := i.ApplicationCommandData().Options[0].Options
+func respondWithError(session *discordgo.Session, interaction *discordgo.Interaction, errorStr string, context string, err error) {
+	respondWithLog(session, interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: errorStr,
+		},
+	}, context)
+	if err != nil {
+		fmt.Println("Error in", context+":", err)
+	}
+}
+
+func handleTimer(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	switch interaction.ApplicationCommandData().Options[0].Name {
+	case "create":
+		handleTimerCreate(session, interaction)
+	case "list":
+		handleTimerList(session, interaction)
+	case "delete":
+		handleTimerDelete(session, interaction)
+	case "edit":
+		handleTimerEdit(session, interaction)
+	case "snooze":
+		handleTimerSnooze(session, interaction)
+	}
+}
+
+func handleTimerCreate(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	options := interaction.ApplicationCommandData().Options[0].Options
 	message := options[0].StringValue()
 	timeStr := options[1].StringValue()
 
-	date, err := parseDate(timeStr)
+	date, err := parseTime(timeStr)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Invalid date format",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Invalid date format", "handleTimerCreate() error case parsing time", err)
 		return
 	}
 
 	id, err := newTimerID()
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error creating timer ID",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Error creating timer ID", "handleTimerCreate() error case in creating timer id", err)
 		return
 	}
 
-	timer, err := createTimer(id, message, i.Member.User.ID, i.ChannelID, date)
+	user := getUserFromInteraction(interaction)
+	timer, err := createTimer(id, message, user.ID, interaction.ChannelID, date)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error creating timer",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Error creating timer", "handleTimerCreate() error case in creating timer", err)
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	respondWithLog(session, interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title:       "Timer Created",
-					Description: timer.Message,
-					Color:       0x00ff00,
-					Fields: []*discordgo.MessageEmbedField{
-						{Name: "ID", Value: timer.ID, Inline: true},
-						{Name: "Owner", Value: i.Member.User.Mention(), Inline: true},
-						{Name: "Due", Value: fmt.Sprintf("<t:%d:R>", timer.Due.Unix()), Inline: true},
-					},
-				},
+				createTimerEmbed(timer, user, TimerEmbedTypeCreation),
 			},
 		},
-	})
+	}, "handleTimerCreate() success case")
 }
 
-func handleTimerList(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func handleTimerList(session *discordgo.Session, i *discordgo.InteractionCreate) {
 	timers, err := getAllTimersForUser(i.Member.User.ID, true)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error getting timers",
-			},
-		})
+		respondWithError(session, i.Interaction, "Error getting timers", "handleTimerList() getting timers", err)
 		return
 	}
 
 	if len(timers) == 0 {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		respondWithLog(session, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "You have no active timers.",
 			},
-		})
+		}, "handleTimerList() no timers")
 		return
 	}
 
@@ -114,89 +104,61 @@ func handleTimerList(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		})
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	respondWithLog(session, i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{embed},
 		},
-	})
+	}, "handleTimerList() success case")
 }
 
-func handleTimerDelete(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	options := i.ApplicationCommandData().Options[0].Options
+func handleTimerDelete(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	options := interaction.ApplicationCommandData().Options[0].Options
 	timerID := options[0].StringValue()
 
 	timer, err := getTimerByID(timerID)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Invalid timer ID",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Invalid timer ID", "handleTimerDelete() invalid timer id", err)
 		return
 	}
 
-	if timer.User != i.Member.User.ID {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You do not own this timer",
-			},
-		})
+	user := getUserFromInteraction(interaction)
+
+	if timer.User != user.ID {
+		respondWithError(session, interaction.Interaction, "You do not own this timer", "handleTimerDelete() not owner", err)
 		return
 	}
 
 	err = deleteTimer(timerID)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error deleting timer",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Error deleting timer", "handleTimerDelete() error deleting timer", err)
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	respondWithLog(session, interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title:       "Timer Deleted",
-					Description: timer.Message,
-					Color:       0xff0000,
-					Fields: []*discordgo.MessageEmbedField{
-						{Name: "ID", Value: timer.ID, Inline: true},
-					},
-				},
+				createTimerEmbed(timer, user, TimerEmbedTypeDeletion),
 			},
 		},
-	})
+	}, "handleTimerDelete() success case")
 }
 
-func handleTimerEdit(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	options := i.ApplicationCommandData().Options[0].Options
+func handleTimerEdit(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	options := interaction.ApplicationCommandData().Options[0].Options
 	timerID := options[0].StringValue()
 
 	timer, err := getTimerByID(timerID)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Invalid timer ID",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Invalid timer ID", "handleTimerEdit() invalid timer id", err)
 		return
 	}
 
-	if timer.User != i.Member.User.ID {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You do not own this timer",
-			},
-		})
+	user := getUserFromInteraction(interaction)
+
+	if timer.User != user.ID {
+		respondWithError(session, interaction.Interaction, "You do not own this timer", "handleTimerEdit() not owner", err)
 		return
 	}
 
@@ -209,14 +171,9 @@ func handleTimerEdit(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			val := opt.StringValue()
 			newMessage = &val
 		case "time":
-			date, err := parseDate(opt.StringValue())
+			date, err := parseTime(opt.StringValue())
 			if err != nil {
-				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: "Invalid date format",
-					},
-				})
+				respondWithError(session, interaction.Interaction, "Invalid date format", "handleTimerEdit() invalid date format", err)
 				return
 			}
 			newTime = &date
@@ -233,106 +190,69 @@ func handleTimerEdit(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	err = updateTimer(timer)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error updating timer",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Error updating timer", "handleTimerEdit() error updating timer", err)
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	respondWithLog(session, interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title:       "Timer Edited",
-					Description: timer.Message,
-					Color:       0xffff00,
-					Fields: []*discordgo.MessageEmbedField{
-						{Name: "ID", Value: timer.ID, Inline: true},
-						{Name: "Due", Value: fmt.Sprintf("<t:%d:R>", timer.Due.Unix()), Inline: true},
-					},
-				},
+				createTimerEmbed(timer, getUserFromInteraction(interaction), TimerEmbedTypeEdit),
 			},
 		},
-	})
+	}, "handleTimerEdit() success case")
 }
 
-func handleTimerSnooze(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	options := i.ApplicationCommandData().Options[0].Options
+func handleTimerSnooze(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	options := interaction.ApplicationCommandData().Options[0].Options
 	timerID := options[0].StringValue()
 	timeStr := options[1].StringValue()
 
 	timer, err := getTimerByID(timerID)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Invalid timer ID",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Invalid timer ID", "handleTimerSnooze() invalid timer id", err)
 		return
 	}
 
-	if timer.User != i.Member.User.ID {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "You do not own this timer",
-			},
-		})
+	user := getUserFromInteraction(interaction)
+
+	if timer.User != user.ID {
+		respondWithError(session, interaction.Interaction, "You do not own this timer", "handleTimerSnooze() not owner", err)
 		return
 	}
 
-	date, err := parseDate(timeStr)
+	date, err := parseTime(timeStr)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Invalid date format",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Invalid date format", "handleTimerSnooze() invalid date format", err)
 		return
 	}
 
 	err = snoozeTimer(timerID, date)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error snoozing timer",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Error snoozing timer", "handleTimerSnooze() error snoozing timer", err)
 		return
 	}
 
 	snoozedTimer, err := getTimerByID(timerID)
 	if err != nil {
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error getting snoozed timer",
-			},
-		})
+		respondWithError(session, interaction.Interaction, "Error getting snoozed timer", "handleTimerSnooze() error getting snoozed timer", err)
 		return
 	}
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	respondWithLog(session, interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title:       "Timer Snoozed",
-					Description: snoozedTimer.Message,
-					Color:       0x00ffff,
-					Fields: []*discordgo.MessageEmbedField{
-						{Name: "ID", Value: snoozedTimer.ID, Inline: true},
-						{Name: "New Due Date", Value: fmt.Sprintf("<t:%d:R>", snoozedTimer.SnoozedDue.Unix()), Inline: true},
-					},
-				},
+				createTimerEmbed(snoozedTimer, getUserFromInteraction(interaction), TimerEmbedTypeSnooze),
 			},
 		},
-	})
+	}, "handleTimerSnooze() success case")
+}
+
+func getUserFromInteraction(interaction *discordgo.InteractionCreate) *discordgo.User {
+	if interaction.Member != nil {
+		return interaction.Member.User
+	}
+	return interaction.User
 }
