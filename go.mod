@@ -1,6 +1,6 @@
 module github.com/Steffen/timer-bot-go
 
-go 1.25.4
+go 1.25
 
 require (
 	github.com/bwmarrin/discordgo v0.29.0
