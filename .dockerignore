@@ -1,0 +1,25 @@
+# Ignore the database file during build
+timerbot.db
+timerbot.db-journal
+timerbot.db-wal
+timerbot.db-shm
+
+# Ignore data directory
+data/
+
+# Ignore Git files
+.git
+.gitignore
+
+# Ignore IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Ignore test files
+*_test.go
+
+# Ignore README
+README.md
+
