@@ -47,6 +47,14 @@ var commands = []*discordgo.ApplicationCommand{
 				Name:        "list",
 				Description: "List all timers",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionBoolean,
+						Name:        "show_expired",
+						Description: "Whether to show expired timers",
+						Required:    false,
+					},
+				},
 			},
 			{
 				Name:        "delete",

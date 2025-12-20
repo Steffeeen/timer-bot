@@ -76,24 +76,46 @@ func handleTimerCreate(session *discordgo.Session, interaction *discordgo.Intera
 }
 
 func handleTimerList(session *discordgo.Session, i *discordgo.InteractionCreate) {
-	timers, err := getAllTimersForUser(i.Member.User.ID, true)
+	// Check if the show_expired option is provided
+	showExpired := false
+	options := i.ApplicationCommandData().Options[0].Options
+	if len(options) > 0 {
+		for _, opt := range options {
+			if opt.Name == "show_expired" {
+				showExpired = opt.BoolValue()
+				break
+			}
+		}
+	}
+
+	// Get timers based on the show_expired option
+	onlyActive := !showExpired
+	timers, err := getAllTimersForUser(i.Member.User.ID, onlyActive)
 	if err != nil {
 		respondWithError(session, i.Interaction, "Error getting timers", "handleTimerList() getting timers", err)
 		return
 	}
 
 	if len(timers) == 0 {
+		message := "You have no active timers."
+		if showExpired {
+			message = "You have no timers."
+		}
 		respondWithLog(session, i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: "You have no active timers.",
+				Content: message,
 			},
 		}, "handleTimerList() no timers")
 		return
 	}
 
+	title := "Active Timers"
+	if showExpired {
+		title = "All Timers"
+	}
 	embed := &discordgo.MessageEmbed{
-		Title: "Active Timers",
+		Title: title,
 		Color: 0x3c1984,
 	}
 
