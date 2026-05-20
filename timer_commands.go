@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -39,6 +40,84 @@ func handleTimer(session *discordgo.Session, interaction *discordgo.InteractionC
 	case "snooze":
 		handleTimerSnooze(session, interaction)
 	}
+}
+
+func handleTimerAutocomplete(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+	commandOptions := interaction.ApplicationCommandData().Options
+	if len(commandOptions) == 0 {
+		return
+	}
+
+	subcommand := commandOptions[0]
+	if subcommand.Name != "delete" && subcommand.Name != "edit" && subcommand.Name != "snooze" {
+		return
+	}
+
+	var focusedValue string
+	for _, opt := range subcommand.Options {
+		if opt.Name == "id" && opt.Focused {
+			focusedValue = strings.ToLower(opt.StringValue())
+			break
+		}
+	}
+
+	timers, err := getAllTimersForUser(getUserFromInteraction(interaction).ID, true)
+	if err != nil {
+		fmt.Println("Error fetching timers for autocomplete:", err)
+		return
+	}
+
+	choices := make([]*discordgo.ApplicationCommandOptionChoice, 0, 25)
+	for _, timer := range timers {
+		idLower := strings.ToLower(timer.ID)
+		if focusedValue != "" && !strings.Contains(idLower, focusedValue) {
+			continue
+		}
+
+		choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+			Name:  buildTimerAutocompleteLabel(timer.ID, timer.Message),
+			Value: timer.ID,
+		})
+
+		if len(choices) == 25 {
+			break
+		}
+	}
+
+	err = session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices,
+		},
+	})
+	if err != nil {
+		fmt.Println("Error responding with autocomplete choices:", err)
+	}
+}
+
+func buildTimerAutocompleteLabel(id string, message string) string {
+	const maxLen = 100
+	base := fmt.Sprintf("%s - %s", id, message)
+	if len(base) <= maxLen {
+		return base
+	}
+
+	trimmed := message
+	prefixLen := len(id) + len(" - ")
+	if prefixLen >= maxLen {
+		return id
+	}
+
+	messageMax := maxLen - prefixLen - len("...")
+	if messageMax < 0 {
+		messageMax = 0
+	}
+
+	if len(trimmed) > messageMax {
+		trimmed = trimmed[:messageMax] + "..."
+	}
+
+	return fmt.Sprintf("%s - %s", id, trimmed)
 }
 
 func handleTimerCreate(session *discordgo.Session, interaction *discordgo.InteractionCreate) {

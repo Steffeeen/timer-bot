@@ -66,6 +66,7 @@ var commands = []*discordgo.ApplicationCommand{
 						Name:        "id",
 						Description: "The ID of the timer to delete",
 						Required:    true,
+						Autocomplete: true,
 					},
 				},
 			},
@@ -79,6 +80,7 @@ var commands = []*discordgo.ApplicationCommand{
 						Name:        "id",
 						Description: "The ID of the timer to edit",
 						Required:    true,
+						Autocomplete: true,
 					},
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
@@ -104,6 +106,7 @@ var commands = []*discordgo.ApplicationCommand{
 						Name:        "id",
 						Description: "The ID of the timer to snooze",
 						Required:    true,
+						Autocomplete: true,
 					},
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
@@ -124,6 +127,14 @@ func interactionCreate(session *discordgo.Session, interaction *discordgo.Intera
 			handleUntil(session, interaction)
 		case "timer":
 			handleTimer(session, interaction)
+		}
+		return
+	}
+
+	if interaction.Type == discordgo.InteractionApplicationCommandAutocomplete {
+		switch interaction.ApplicationCommandData().Name {
+		case "timer":
+			handleTimerAutocomplete(session, interaction)
 		}
 	}
 }
