@@ -324,9 +324,10 @@ func TestParseTimeReturnsLocalTimezone(t *testing.T) {
 
 			require.NoError(t, err, "parseTime(%q) should not return an error", tc.input)
 
-			// Check that the timezone matches the local timezone
+			// Check that the timezone matches local timezone rules at the parsed instant
 			resultZone, resultOffset := result.Zone()
-			localZoneName, localOffset := time.Now().Zone()
+			localAtResult := result.In(time.Local)
+			localZoneName, localOffset := localAtResult.Zone()
 
 			assert.Equal(t, localZoneName, resultZone,
 				"parseTime(%q) should return time in local timezone. Got %s, expected %s",
