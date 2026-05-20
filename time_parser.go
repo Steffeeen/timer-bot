@@ -7,6 +7,31 @@ import (
 )
 
 func parseTime(timeStr string) (time.Time, error) {
+	parsed, err := parseTimeInternal(timeStr)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	if parsed.Hour() == 0 && parsed.Minute() == 0 {
+		// The user typed just a date without specifying a time
+		// Default to using the current time
+		timeNow := time.Now()
+		parsed = time.Date(
+			parsed.Year(),
+			parsed.Month(),
+			parsed.Day(),
+			timeNow.Hour(),
+			timeNow.Minute(),
+			timeNow.Second(),
+			timeNow.Nanosecond(),
+			parsed.Location(),
+		)
+	}
+
+	return parsed, nil
+}
+
+func parseTimeInternal(timeStr string) (time.Time, error) {
 	// Try standard Go time formats first for well-formed ISO dates
 	formats := []string{
 		time.RFC3339,
